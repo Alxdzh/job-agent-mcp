@@ -32,49 +32,90 @@ MCP 工具不会提供聊天、HR 回复、QQ 或微信连接，也不会把外�
 
 ## 安装和接入
 
-### 共同准备
-
 需要 Node.js 22.12+、系统 Google Chrome，以及本仓库 `daemon` 目录的 npm 依赖。GitHub 源码仓库不提交 `node_modules`，首次安装需要网络执行 npm 安装；安装时会使用系统 Chrome，不额外下载 Chromium。
 
-在仓库根目录执行：
+### 下载 ZIP 后一条命令安装（推荐）
 
-#### Windows PowerShell
+#### Windows
+
+在解压后的仓库根目录打开命令提示符或 PowerShell，执行：
 
 ```powershell
-Set-Location .\daemon
-$env:PUPPETEER_SKIP_DOWNLOAD = "1"
-npm install
+.\install-mcp.bat --client auto
 ```
+
+这个命令会依次完成：检查或安装 Node.js 和 Chrome、安装项目依赖、创建桌面快捷方式，并把 MCP 服务注册到本机检测到的 Codex、Claude Code、OpenCode、WorkBuddy/CodeBuddy 客户端。它不会开始投递。
+
+也可以只注册某一个客户端：
+
+```powershell
+.\install-mcp.bat --client codex
+.\install-mcp.bat --client claude
+.\install-mcp.bat --client opencode
+.\install-mcp.bat --client workbuddy
+```
+
+`auto` 会注册所有已安装的客户端；没有检测到任何客户端时会明确报错，不会悄悄修改未知配置。`install.bat` 只准备工作台环境并创建快捷方式，不注册 MCP；`start.bat` 只启动工作台。
 
 #### macOS / Linux
 
+先安装 Node.js 22.12+ 和 Google Chrome，然后执行：
+
 ```bash
-cd daemon
-export PUPPETEER_SKIP_DOWNLOAD=1
-npm install
+sh install-mcp.sh --client auto
 ```
 
-### 配置 MCP 客户端
+安装完成后，如果系统存在 `Desktop` 目录，会创建桌面启动文件。也可以使用 `npm run setup` 安装、使用 `npm start` 启动工作台，再使用 `npm run mcp:install -- --client codex` 注册指定客户端。
 
-1. 复制 `daemon/mcp-config.example.json`。
-2. 把 `<absolute-path-to-job-agent>` 换成仓库解压后的绝对路径。Windows 推荐在 JSON 中使用正斜杠，例如 `C:/Tools/job-agent-mcp`，避免反斜杠转义问题。
-3. 将配置导入支持 MCP 的外部 Agent，重新连接该 MCP 服务。
-4. 让外部 Agent 调用 `job_get_status` 或 `job_get_workflow` 验证连接。
+### 让成熟 Agent 用命令安装
 
-配置示例：
+如果仓库已经下载或克隆到本机，可以直接把下面这句话发给 Claude Code、OpenCode、Codex 或 WorkBuddy/CodeBuddy，让它在仓库根目录执行：
 
-```json
-{
-  "mcpServers": {
-    "job-agent": {
-      "command": "node",
-      "args": ["C:/Tools/job-agent-mcp/daemon/mcp-server.mjs"]
-    }
-  }
-}
+```text
+请在当前 job-agent-mcp 根目录完成安装：Windows 执行 .\\install-mcp.bat --client auto，macOS/Linux 执行 sh install-mcp.sh --client auto；它会准备依赖、创建桌面启动入口，并把本地 job-agent MCP 注册到本机已安装的 Agent。完成后用对应客户端的 MCP 列表命令验证，不要把任何 API Key、Cookies 或浏览器目录写入配置。
 ```
 
-如果 MCP 客户端找不到 `node`，把 `command` 换成 Node.js 的绝对路径，例如 Windows 的 `C:/Program Files/nodejs/node.exe`。不要把 API Key、Cookies 或浏览器用户目录写进 MCP 配置文件。
+如果当前电脑还没有仓库，并且当前 GitHub 账号有本私有仓库的访问权限，可以让外部 Agent 依次执行：
+
+```bash
+git clone https://github.com/Alxdzh/job-agent-mcp.git
+cd job-agent-mcp
+# Windows: .\\install-mcp.bat --client auto
+# macOS/Linux: sh install-mcp.sh --client auto
+```
+
+也可以手动执行同一条命令：
+
+```bash
+node tools/install-mcp.mjs --client auto
+```
+
+这条 Node 命令会安装 npm 依赖并注册客户端，但要求 Node.js 已经存在；如果还没有 Node.js、Chrome 或桌面快捷方式，请使用上面的 `install-mcp.bat` 或 `sh install-mcp.sh`。
+
+### 各客户端的注册方式
+
+安装脚本使用客户端原生方式写入用户配置：
+
+| 客户端 | 自动注册方式 | 验证方式 |
+| --- | --- | --- |
+| Codex | `codex mcp add job-agent -- <node绝对路径> <mcp-server.mjs绝对路径>` | `codex mcp list` |
+| Claude Code | `claude mcp add --transport stdio --scope user job-agent -- <node绝对路径> <mcp-server.mjs绝对路径>` | `claude mcp list` 或 `/mcp` |
+| OpenCode | 写入全局 `~/.config/opencode/opencode.json(c)` 的 `mcp.servers` | `opencode mcp list` |
+| WorkBuddy / CodeBuddy | `codebuddy mcp add --scope user job-agent -- <node绝对路径> <mcp-server.mjs绝对路径>` | `codebuddy mcp list` |
+
+如果某个客户端已经存在同名但不同路径的 MCP，安装器会停止并提示使用 `--name` 换名，不会覆盖原配置。OpenCode 配置改写前会在同目录生成带时间戳的 `.job-agent.bak-*` 备份。OpenCode 使用自定义配置文件时，先设置 `OPENCODE_CONFIG` 再运行安装命令。
+
+对应的客户端文档：[Codex MCP](https://developers.openai.com/codex/mcp)、[Claude Code MCP](https://code.claude.com/docs/en/mcp)、[OpenCode MCP](https://opencode.ai/v2/docs/mcp-servers/) 和 [WorkBuddy/CodeBuddy MCP](https://www.workbuddy.ai/docs/zh/cli/mcp)。
+
+### 手动配置兜底
+
+如果客户端没有 CLI，可以运行下面的命令打印标准 JSON 配置，再在客户端的 MCP 设置中添加：
+
+```bash
+node tools/install-mcp.mjs --print
+```
+
+或者复制 `daemon/mcp-config.example.json`，把 `<absolute-path-to-job-agent>` 换成实际解压路径。Windows JSON 中建议使用正斜杠，例如 `C:/Tools/job-agent-mcp`；不要把 API Key、Cookies 或浏览器用户目录写进 MCP 配置文件。
 
 ### 手动测试 MCP 服务
 
@@ -84,7 +125,7 @@ npm install
 node daemon/mcp-server.mjs
 ```
 
-这是 stdio 服务，正常运行时不会把业务输出打印到 stdout；让 MCP 客户端启动它即可。若希望先用网页工作台填写资料、检查登录和查看状态，可运行本仓库附带的 `one-click-start.bat`（Windows）或 `node daemon/index.mjs`；这只是工作台入口，不会自动开始投递。
+这是 stdio 服务，正常运行时不会把业务输出打印到 stdout；让 MCP 客户端启动它即可。若希望先用网页工作台填写资料、检查登录和查看状态，可运行 `start.bat`（Windows）或 `npm start`；这只是工作台入口，不会自动开始投递。
 
 ## 登录、投递和停止
 

@@ -1,6 +1,7 @@
 {
   "mcpServers": {
     "job-agent": {
+      "type": "stdio",
       "command": "node",
       "args": ["<absolute-path-to-job-agent>/daemon/mcp-server.mjs"]
     }

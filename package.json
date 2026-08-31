@@ -1,0 +1,10 @@
+{
+  "name": "job-agent-mcp",
+  "private": true,
+  "scripts": {
+    "setup": "node tools/setup.mjs",
+    "start": "node tools/start.mjs",
+    "mcp": "node tools/install-mcp.mjs --client auto",
+    "mcp:install": "node tools/install-mcp.mjs"
+  }
+}
