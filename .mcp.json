@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "job-agent": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "${CODEBUDDY_PLUGIN_ROOT}/tools/workbuddy-mcp-launcher.mjs"
+      ],
+      "cwd": "${CODEBUDDY_PLUGIN_ROOT}"
+    }
+  }
+}

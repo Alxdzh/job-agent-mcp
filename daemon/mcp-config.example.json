@@ -2,8 +2,15 @@
   "mcpServers": {
     "job-agent": {
       "type": "stdio",
-      "command": "node",
-      "args": ["<absolute-path-to-job-agent>/daemon/mcp-server.mjs"]
+      "command": "<absolute-path-to-node>",
+      "args": ["<absolute-path-to-job-agent>/daemon/mcp-server.mjs"],
+      "cwd": "<absolute-path-to-job-agent>/daemon",
+      "env": {
+        "JOB_AGENT_CONFIG_DIR": "<user-home>/.job-agent/config",
+        "JOB_AGENT_STORAGE_DIR": "<user-home>/.job-agent/storage",
+        "BOSS_DAEMON_STATE": "<user-home>/.job-agent/state",
+        "BOSS_CHROME_PATH": "<absolute-path-to-chrome>"
+      }
     }
   }
 }

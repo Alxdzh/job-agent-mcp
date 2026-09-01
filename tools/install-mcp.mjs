@@ -14,7 +14,7 @@ function usage() {
 
 Options:
   --client auto|all|codex|claude|opencode|workbuddy   Client to configure (default: auto)
-                                                        WorkBuddy uses ~/.workbuddy/mcp.json and needs no CLI
+                                                        WorkBuddy prefers the repository plugin; direct mode uses ~/.workbuddy/mcp.json
   --name NAME                                         MCP server name (default: job-agent)
   --skip-deps                                         Do not run npm install
   --print                                              Print a generic mcpServers JSON block
@@ -63,6 +63,32 @@ function resolveExecutable(command) {
   return String(result.stdout || '').split(/\r?\n/).map(line => line.trim()).find(Boolean) || ''
 }
 
+function resolveNpm() {
+  const nodeDir = path.dirname(process.execPath)
+  const candidates = process.platform === 'win32'
+    ? [
+        process.env.NPM_CMD,
+        path.join(nodeDir, 'npm.cmd'),
+        path.join(nodeDir, 'npm.exe')
+      ]
+    : [
+        process.env.NPM_CMD,
+        path.join(nodeDir, 'npm'),
+        path.join(nodeDir, 'npm-cli.js')
+      ]
+  for (const candidate of candidates.filter(Boolean)) {
+    if (fs.existsSync(candidate)) return { command: candidate, args: [] }
+  }
+
+  const bundledNpm = process.platform === 'win32'
+    ? path.join(nodeDir, 'node_modules', 'npm', 'bin', 'npm-cli.js')
+    : path.join(nodeDir, '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js')
+  if (fs.existsSync(bundledNpm)) return { command: process.execPath, args: [bundledNpm] }
+
+  const resolved = resolveExecutable(process.platform === 'win32' ? 'npm.cmd' : 'npm')
+  return resolved ? { command: resolved, args: [] } : null
+}
+
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
     cwd: options.cwd || ROOT,
@@ -89,10 +115,10 @@ function ensureDependencies() {
   const patchApplied = fs.existsSync(anonymizeUaSource)
     && fs.readFileSync(anonymizeUaSource, 'utf8').includes('async onBrowser(browser)')
   if (markers.every(marker => fs.existsSync(marker)) && patchApplied) return
-  const npm = resolveExecutable(process.platform === 'win32' ? 'npm.cmd' : 'npm')
-  if (!npm) throw new Error('找不到 npm。请先安装 Node.js 22.12+，或先运行 install.bat。')
+  const npm = resolveNpm()
+  if (!npm) throw new Error('找不到 npm。请先安装 Node.js 22.12+，或让 WorkBuddy 使用其内置 Node.js 重试。')
   console.log('[Job Agent] Installing MCP dependencies...')
-  const result = run(npm, ['install', '--no-audit', '--no-fund'], {
+  const result = run(npm.command, [...npm.args, 'install', '--no-audit', '--no-fund'], {
     cwd: DAEMON,
     // Keep npm independent from host-injected Node --require hooks. They can
     // replace npm's normal cleanup phase and make reify fail before install.

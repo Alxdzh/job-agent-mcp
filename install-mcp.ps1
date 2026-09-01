@@ -10,9 +10,17 @@ function Find-Node {
   $command = Get-Command node.exe -ErrorAction SilentlyContinue
   if ($command) { return $command.Source }
   $candidates = @(
+    $env:WORKBUDDY_NODE_PATH,
+    $env:CODEBUDDY_NODE_PATH,
     (Join-Path ${env:ProgramFiles} 'nodejs\node.exe'),
     (Join-Path ${env:LOCALAPPDATA} 'Programs\nodejs\node.exe')
   )
+  $workbuddyVersions = Join-Path $env:USERPROFILE '.workbuddy\binaries\node\versions'
+  if (Test-Path -LiteralPath $workbuddyVersions) {
+    $candidates += @(Get-ChildItem -LiteralPath $workbuddyVersions -Directory -ErrorAction SilentlyContinue |
+      Sort-Object Name -Descending |
+      ForEach-Object { Join-Path $_.FullName 'node.exe' })
+  }
   return $candidates | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
 }
 

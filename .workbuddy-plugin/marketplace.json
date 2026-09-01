@@ -1,0 +1,14 @@
+{
+  "name": "job-agent-tools",
+  "owner": {
+    "name": "Job Agent contributors"
+  },
+  "plugins": [
+    {
+      "name": "job-agent-mcp",
+      "source": ".",
+      "version": "1.0.2",
+      "description": "本地求职投递 MCP 工作台。"
+    }
+  ]
+}

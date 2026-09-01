@@ -90,35 +90,16 @@ sh install-mcp.sh --client auto
 
 ### 让 Agent 直接从 GitHub 安装
 
-把下面整段消息发给可以执行本地终端命令的 Agent：
+在 WorkBuddy 对话框直接发送下面这句话。WorkBuddy 会按仓库里的插件清单安装，不需要你手动打开终端或编辑 MCP 配置：
 
 ```text
-请直接从 GitHub 安装 Job Agent MCP，不要假设当前目录已经有仓库。
+请从 GitHub 安装并启用 Job Agent MCP：
+https://github.com/Alxdzh/job-agent-mcp
 
-仓库地址：https://github.com/Alxdzh/job-agent-mcp.git
-请将仓库安装到当前用户主目录下的 job-agent-mcp。Windows 安装段必须使用 PowerShell，不要使用 Git Bash。
-
-Windows PowerShell：
-$installRoot = Join-Path $env:USERPROFILE 'job-agent-mcp'
-$repoMarker = Join-Path $installRoot '.git'
-if (Test-Path -LiteralPath $repoMarker) {
-  git -C $installRoot pull --ff-only
-} elseif (Test-Path -LiteralPath $installRoot) {
-  throw "安装目录已存在但不是 Job Agent 仓库：$installRoot"
-} else {
-  git clone -- https://github.com/Alxdzh/job-agent-mcp.git $installRoot
-}
-Set-Location -LiteralPath $installRoot
-& (Join-Path $installRoot 'install-mcp.bat') --client auto
-
-macOS/Linux：
-dir="$HOME/job-agent-mcp"
-if [ -d "$dir/.git" ]; then git -C "$dir" pull --ff-only; else git clone https://github.com/Alxdzh/job-agent-mcp.git "$dir"; fi
-cd "$dir"
-sh install-mcp.sh --client auto
-
-如果安装目录存在但不是这个仓库，不要覆盖，先报告冲突路径。安装完成后验证 job-agent MCP 已注册并列出可用工具。安装和连接不会自动开始投递。
+请使用仓库内的 WorkBuddy 插件清单完成安装，并验证 job-agent MCP 已连接、工具可以列出。如果需要先添加 GitHub 插件源，请自动完成。首次启动需要准备依赖时请自动完成。安装和连接完成后不要自动开始投递，等我明确下达投递指令。
 ```
+
+仓库包含 `.workbuddy-plugin/plugin.json` 和 `.mcp.json`。插件入口会使用 WorkBuddy 自带的 Node.js 准备依赖，并把运行配置和状态保存到当前用户目录；不需要在 WorkBuddy 运行期间改写其锁定的 `mcp.json`。
 
 ## 调用流程
 
@@ -144,7 +125,7 @@ job_get_workflow
 | Codex | `codex mcp add` | `codex mcp list` |
 | Claude Code | `claude mcp add` | `claude mcp list` 或 `/mcp` |
 | OpenCode | 全局 `opencode.json(c)` | `opencode mcp list` |
-| WorkBuddy / CodeBuddy | `~/.workbuddy/mcp.json`（文件级注册，无需 CLI） | 客户端的 MCP 设置 |
+| WorkBuddy / CodeBuddy | 优先安装仓库内的 WorkBuddy 插件；备用位置为 `~/.workbuddy/mcp.json` | 客户端的 MCP 设置 |
 
 同名服务已存在时，安装器不会覆盖原配置；OpenCode 修改配置前会生成备份。
 

@@ -60,9 +60,17 @@ function Find-Node {
   $cmd = Get-Command node.exe -ErrorAction SilentlyContinue
   if ($cmd) { return $cmd.Source }
   $candidates = @(
+    $env:WORKBUDDY_NODE_PATH,
+    $env:CODEBUDDY_NODE_PATH,
     (Join-Path ${env:ProgramFiles} 'nodejs\node.exe'),
     (Join-Path ${env:LOCALAPPDATA} 'Programs\nodejs\node.exe')
   )
+  $workbuddyVersions = Join-Path $env:USERPROFILE '.workbuddy\binaries\node\versions'
+  if (Test-Path -LiteralPath $workbuddyVersions) {
+    $candidates += @(Get-ChildItem -LiteralPath $workbuddyVersions -Directory -ErrorAction SilentlyContinue |
+      Sort-Object Name -Descending |
+      ForEach-Object { Join-Path $_.FullName 'node.exe' })
+  }
   return $candidates | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
 }
 
@@ -94,6 +102,18 @@ function Find-Chrome {
     (Join-Path ${env:ProgramFiles(x86)} 'Google\Chrome\Application\chrome.exe'),
     (Join-Path ${env:LOCALAPPDATA} 'Google\Chrome\Application\chrome.exe')
   )
+  return $candidates | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
+}
+
+function Find-Npm([string]$Node) {
+  $candidates = @()
+  if ($Node) {
+    $nodeDir = Split-Path -Parent $Node
+    $candidates += (Join-Path $nodeDir 'npm.cmd')
+    $candidates += (Join-Path $nodeDir 'npm.exe')
+  }
+  $command = Get-Command npm.cmd -ErrorAction SilentlyContinue
+  if ($command) { $candidates += $command.Source }
   return $candidates | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
 }
 
@@ -155,8 +175,8 @@ function Test-Dependencies {
 
 function Ensure-Dependencies([string]$Node) {
   if (Test-Dependencies) { return }
-  $npm = Get-Command npm.cmd -ErrorAction SilentlyContinue
-  if (!$npm) { throw 'npm.cmd was not found. Re-run the launcher or reinstall Node.js.' }
+  $npm = Find-Npm $Node
+  if (!$npm) { throw 'npm.cmd was not found beside the available Node.js runtime. Re-run the launcher or reinstall Node.js.' }
   Say 'Installing project dependencies. System Chrome is used; no extra Chromium download...'
   $env:PUPPETEER_SKIP_DOWNLOAD = '1'
   $hadNodeOptions = Test-Path Env:NODE_OPTIONS
@@ -167,7 +187,7 @@ function Ensure-Dependencies([string]$Node) {
     # deletion with a host-specific trash command. npm reify legitimately
     # removes stale package entries, so install it in a clean Node environment.
     $env:NODE_OPTIONS = ''
-    & $npm.Source install --no-audit --no-fund
+    & $npm install --no-audit --no-fund
     if ($LASTEXITCODE -ne 0) { throw "Dependency installation failed. npm exit code: $LASTEXITCODE." }
   } finally {
     Pop-Location
