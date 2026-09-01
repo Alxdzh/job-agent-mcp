@@ -89,7 +89,7 @@ job_get_workflow
 
 ## 工作台
 
-需要填写投递资料、登录平台或查看浏览器状态时，Windows 双击桌面快捷方式或 `start.bat`；macOS/Linux 执行 `npm start`。
+需要配置投递条件、登录平台或查看浏览器状态时，Windows 双击桌面快捷方式或 `start.bat`；macOS/Linux 执行 `npm start`。
 
 默认使用可见 Chrome 页面，平台操作通过页面控件完成。
 
