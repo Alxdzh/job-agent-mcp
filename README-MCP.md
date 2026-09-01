@@ -29,10 +29,29 @@ cd job-agent-mcp
 
 然后按系统执行上面的安装命令。
 
-## 让 Agent 安装
+## 让 Agent 从 GitHub 安装
+
+把下面整段消息发给可以执行本地终端命令的 Agent。它会先从 GitHub 拉取仓库，再完成 MCP 注册，不要求当前目录已经有项目：
 
 ```text
-请在当前 job-agent-mcp 根目录完成安装：Windows 执行 .\\install-mcp.bat --client auto，macOS/Linux 执行 sh install-mcp.sh --client auto。安装完成后连接 job-agent MCP，并列出可用工具。
+请直接从 GitHub 安装 Job Agent MCP，不要假设当前目录已经有仓库。
+
+仓库地址：https://github.com/Alxdzh/job-agent-mcp.git
+安装目录：当前用户主目录下的 job-agent-mcp
+
+Windows PowerShell 请执行：
+$dir = Join-Path $env:USERPROFILE 'job-agent-mcp'
+if (Test-Path (Join-Path $dir '.git')) { git -C $dir pull --ff-only } else { git clone https://github.com/Alxdzh/job-agent-mcp.git $dir }
+Set-Location $dir
+.\install-mcp.bat --client auto
+
+macOS/Linux 请执行：
+dir="$HOME/job-agent-mcp"
+if [ -d "$dir/.git" ]; then git -C "$dir" pull --ff-only; else git clone https://github.com/Alxdzh/job-agent-mcp.git "$dir"; fi
+cd "$dir"
+sh install-mcp.sh --client auto
+
+如果安装目录存在但不是这个仓库，不要覆盖，先报告冲突路径。安装完成后验证 job-agent MCP 已注册并列出可用工具。安装和连接不会自动开始投递。
 ```
 
 ## 常用工具顺序
