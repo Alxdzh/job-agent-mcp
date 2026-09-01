@@ -82,9 +82,13 @@ function ensureDependencies() {
     path.join(DAEMON, 'node_modules', 'puppeteer-core', 'package.json'),
     path.join(DAEMON, 'node_modules', 'puppeteer-extra', 'package.json'),
     path.join(DAEMON, 'node_modules', 'puppeteer-extra-plugin-anonymize-ua', 'package.json'),
-    path.join(DAEMON, 'node_modules', 'puppeteer-extra-plugin-stealth', 'package.json')
+    path.join(DAEMON, 'node_modules', 'puppeteer-extra-plugin-stealth', 'package.json'),
+    path.join(DAEMON, 'node_modules', 'patch-package', 'package.json')
   ]
-  if (markers.every(marker => fs.existsSync(marker))) return
+  const anonymizeUaSource = path.join(DAEMON, 'node_modules', 'puppeteer-extra-plugin-anonymize-ua', 'index.js')
+  const patchApplied = fs.existsSync(anonymizeUaSource)
+    && fs.readFileSync(anonymizeUaSource, 'utf8').includes('async onBrowser(browser)')
+  if (markers.every(marker => fs.existsSync(marker)) && patchApplied) return
   const npm = resolveExecutable(process.platform === 'win32' ? 'npm.cmd' : 'npm')
   if (!npm) throw new Error('找不到 npm。请先安装 Node.js 22.12+，或先运行 install.bat。')
   console.log('[Job Agent] Installing MCP dependencies...')
