@@ -44,8 +44,8 @@ export function readDeliveryConfig(platform = 'boss') {
   }
 }
 
-// 只改平台投递配置，不处理任何密钥、Cookie 或个人资料。个人资料/长期方向
-// 应由 profile-engine 写入，这样才会同步到用户资料库。
+// 只改平台投递配置，不处理密钥、Cookie 或投递资料文本；投递资料由
+// delivery-materials.mjs 单独维护，避免和平台配置混在一起。
 export function updateDeliveryConfig(updates = {}) {
   const platform = normalizePlatform(updates.platform)
   if (platform === 'all') {
