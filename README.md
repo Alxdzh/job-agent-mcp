@@ -152,7 +152,7 @@ node daemon/mcp-server.mjs
 
 ## 使用浏览器工作台
 
-默认使用系统 Chrome 的可见窗口。需要先填写资料、登录或查看状态时，启动 `start.bat`（Windows）或 `npm start`。
+默认使用系统 Chrome 的可见窗口。需要先填写 JD 判断资料、登录或查看状态时，启动 `start.bat`（Windows）或 `npm start`。
 
 ## 相关版本
 
