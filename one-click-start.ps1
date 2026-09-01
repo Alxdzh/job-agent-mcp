@@ -159,11 +159,21 @@ function Ensure-Dependencies([string]$Node) {
   if (!$npm) { throw 'npm.cmd was not found. Re-run the launcher or reinstall Node.js.' }
   Say 'Installing project dependencies. System Chrome is used; no extra Chromium download...'
   $env:PUPPETEER_SKIP_DOWNLOAD = '1'
+  $hadNodeOptions = Test-Path Env:NODE_OPTIONS
+  $previousNodeOptions = $env:NODE_OPTIONS
   Push-Location $DaemonDir
   try {
+    # Some managed terminals inject a Node --require hook that replaces file
+    # deletion with a host-specific trash command. npm reify legitimately
+    # removes stale package entries, so install it in a clean Node environment.
+    $env:NODE_OPTIONS = ''
     & $npm.Source install --no-audit --no-fund
     if ($LASTEXITCODE -ne 0) { throw "Dependency installation failed. npm exit code: $LASTEXITCODE." }
-  } finally { Pop-Location }
+  } finally {
+    Pop-Location
+    if ($hadNodeOptions) { $env:NODE_OPTIONS = $previousNodeOptions }
+    else { Remove-Item Env:NODE_OPTIONS -ErrorAction SilentlyContinue }
+  }
 }
 
 function Ensure-Shortcut {

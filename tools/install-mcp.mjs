@@ -94,7 +94,9 @@ function ensureDependencies() {
   console.log('[Job Agent] Installing MCP dependencies...')
   const result = run(npm, ['install', '--no-audit', '--no-fund'], {
     cwd: DAEMON,
-    env: { PUPPETEER_SKIP_DOWNLOAD: '1' }
+    // Keep npm independent from host-injected Node --require hooks. They can
+    // replace npm's normal cleanup phase and make reify fail before install.
+    env: { PUPPETEER_SKIP_DOWNLOAD: '1', NODE_OPTIONS: '' }
   })
   if (result.status !== 0) throw new Error(`npm install failed with exit code ${result.status}.`)
 }
@@ -235,6 +237,27 @@ function isConfigLockError(error) {
   return ['EPERM', 'EBUSY', 'EACCES'].includes(error?.code)
 }
 
+function sleepSync(milliseconds) {
+  const buffer = new SharedArrayBuffer(4)
+  Atomics.wait(new Int32Array(buffer), 0, 0, milliseconds)
+}
+
+function writeConfigWithRetry(file, contents) {
+  let lastError
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    try {
+      fs.writeFileSync(file, contents, 'utf8')
+      return
+    } catch (error) {
+      lastError = error
+      if (!isConfigLockError(error) || attempt === 7) throw error
+      console.log(`[Job Agent] WorkBuddy 配置文件暂时被占用，${attempt + 1}/7 秒后重试...`)
+      sleepSync(1000)
+    }
+  }
+  throw lastError
+}
+
 function printWorkbuddyFallback(file, block) {
   console.log('\n[Job Agent] WorkBuddy 正在运行并占用配置文件锁，无法自动写入。')
   console.log('请重启 WorkBuddy 后重新运行安装，或在 WorkBuddy「自定义连接器」中粘贴下面的配置并点“信任”。')
@@ -268,7 +291,7 @@ function updateWorkbuddy(name) {
       console.log('[Job Agent] WorkBuddy config backup: ' + backup)
     }
     config.mcpServers[name] = entry
-    fs.writeFileSync(file, JSON.stringify(config, null, 2) + '\n', 'utf8')
+    writeConfigWithRetry(file, JSON.stringify(config, null, 2) + '\n')
     console.log('[Job Agent] workbuddy: registered ' + name + ' in ' + file + '.')
   } catch (error) {
     if (isConfigLockError(error)) {

@@ -63,13 +63,20 @@ npm start
 
 ### 从 GitHub 安装
 
-仓库已公开，无需额外 GitHub 权限。Windows PowerShell 执行：
+仓库已公开，无需额外 GitHub 权限。Windows 请在 **PowerShell** 中执行下面的命令；不要把这段 Windows 命令放进 Git Bash、Cygwin 或 MSYS2。这样可以避免 Git for Windows 把 Windows 盘符路径转换成错误的 `/c` 路径。
 
 ```powershell
-$dir = Join-Path $env:USERPROFILE 'job-agent-mcp'
-if (Test-Path (Join-Path $dir '.git')) { git -C $dir pull --ff-only } else { git clone https://github.com/Alxdzh/job-agent-mcp.git $dir }
-Set-Location $dir
-.\install-mcp.bat --client auto
+$installRoot = Join-Path $env:USERPROFILE 'job-agent-mcp'
+$repoMarker = Join-Path $installRoot '.git'
+if (Test-Path -LiteralPath $repoMarker) {
+  git -C $installRoot pull --ff-only
+} elseif (Test-Path -LiteralPath $installRoot) {
+  throw "安装目录已存在但不是 Job Agent 仓库：$installRoot"
+} else {
+  git clone -- https://github.com/Alxdzh/job-agent-mcp.git $installRoot
+}
+Set-Location -LiteralPath $installRoot
+& (Join-Path $installRoot 'install-mcp.bat') --client auto
 ```
 
 macOS/Linux 执行：
@@ -89,13 +96,20 @@ sh install-mcp.sh --client auto
 请直接从 GitHub 安装 Job Agent MCP，不要假设当前目录已经有仓库。
 
 仓库地址：https://github.com/Alxdzh/job-agent-mcp.git
-请将仓库安装到当前用户主目录下的 job-agent-mcp。
+请将仓库安装到当前用户主目录下的 job-agent-mcp。Windows 安装段必须使用 PowerShell，不要使用 Git Bash。
 
 Windows PowerShell：
-$dir = Join-Path $env:USERPROFILE 'job-agent-mcp'
-if (Test-Path (Join-Path $dir '.git')) { git -C $dir pull --ff-only } else { git clone https://github.com/Alxdzh/job-agent-mcp.git $dir }
-Set-Location $dir
-.\install-mcp.bat --client auto
+$installRoot = Join-Path $env:USERPROFILE 'job-agent-mcp'
+$repoMarker = Join-Path $installRoot '.git'
+if (Test-Path -LiteralPath $repoMarker) {
+  git -C $installRoot pull --ff-only
+} elseif (Test-Path -LiteralPath $installRoot) {
+  throw "安装目录已存在但不是 Job Agent 仓库：$installRoot"
+} else {
+  git clone -- https://github.com/Alxdzh/job-agent-mcp.git $installRoot
+}
+Set-Location -LiteralPath $installRoot
+& (Join-Path $installRoot 'install-mcp.bat') --client auto
 
 macOS/Linux：
 dir="$HOME/job-agent-mcp"

@@ -20,11 +20,19 @@ sh install-mcp.sh --client auto
 
 `auto` 会注册本机已安装的客户端。也可以把它换成 `codex`、`claude`、`opencode` 或 `workbuddy`。
 
-如果仓库还没有下载：
+如果仓库还没有下载，Windows 请在 PowerShell 中执行；不要在 Git Bash、Cygwin 或 MSYS2 中把 Windows 路径传给 `git -C`：
 
-```bash
-git clone https://github.com/Alxdzh/job-agent-mcp.git
-cd job-agent-mcp
+```powershell
+$installRoot = Join-Path $env:USERPROFILE 'job-agent-mcp'
+$repoMarker = Join-Path $installRoot '.git'
+if (Test-Path -LiteralPath $repoMarker) {
+  git -C $installRoot pull --ff-only
+} elseif (Test-Path -LiteralPath $installRoot) {
+  throw "安装目录已存在但不是 Job Agent 仓库：$installRoot"
+} else {
+  git clone -- https://github.com/Alxdzh/job-agent-mcp.git $installRoot
+}
+Set-Location -LiteralPath $installRoot
 ```
 
 然后按系统执行上面的安装命令。
@@ -34,16 +42,23 @@ cd job-agent-mcp
 把下面整段消息发给可以执行本地终端命令的 Agent。它会先从 GitHub 拉取仓库，再完成 MCP 注册，不要求当前目录已经有项目：
 
 ```text
-请直接从 GitHub 安装 Job Agent MCP，不要假设当前目录已经有仓库。
+请直接从 GitHub 安装 Job Agent MCP，不要假设当前目录已经有仓库。Windows 安装段必须使用 PowerShell，不要使用 Git Bash。
 
 仓库地址：https://github.com/Alxdzh/job-agent-mcp.git
 安装目录：当前用户主目录下的 job-agent-mcp
 
 Windows PowerShell 请执行：
-$dir = Join-Path $env:USERPROFILE 'job-agent-mcp'
-if (Test-Path (Join-Path $dir '.git')) { git -C $dir pull --ff-only } else { git clone https://github.com/Alxdzh/job-agent-mcp.git $dir }
-Set-Location $dir
-.\install-mcp.bat --client auto
+$installRoot = Join-Path $env:USERPROFILE 'job-agent-mcp'
+$repoMarker = Join-Path $installRoot '.git'
+if (Test-Path -LiteralPath $repoMarker) {
+  git -C $installRoot pull --ff-only
+} elseif (Test-Path -LiteralPath $installRoot) {
+  throw "安装目录已存在但不是 Job Agent 仓库：$installRoot"
+} else {
+  git clone -- https://github.com/Alxdzh/job-agent-mcp.git $installRoot
+}
+Set-Location -LiteralPath $installRoot
+& (Join-Path $installRoot 'install-mcp.bat') --client auto
 
 macOS/Linux 请执行：
 dir="$HOME/job-agent-mcp"
