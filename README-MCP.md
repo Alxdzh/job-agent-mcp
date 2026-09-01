@@ -54,6 +54,24 @@ sh install-mcp.sh --client auto
 如果安装目录存在但不是这个仓库，不要覆盖，先报告冲突路径。安装完成后验证 job-agent MCP 已注册并列出可用工具。安装和连接不会自动开始投递。
 ```
 
+## WorkBuddy 自动注册
+
+WorkBuddy 没有可依赖的 MCP 命令行工具，安装器会直接写入：
+
+```text
+~/.workbuddy/mcp.json
+```
+
+可以在仓库根目录执行：
+
+```bash
+node tools/install-mcp.mjs --client workbuddy
+```
+
+也可以使用 `--client auto` 自动识别 WorkBuddy。写入的配置包含 Node 可执行文件、`mcp-server.mjs`、`cwd`，以及 `JOB_AGENT_CONFIG_DIR`、`JOB_AGENT_STORAGE_DIR`、`BOSS_DAEMON_STATE`、`BOSS_CHROME_PATH` 四个环境变量。
+
+如果 WorkBuddy 正在运行并锁定配置文件，安装器不会中断安装，而是打印完整配置块。重启 WorkBuddy 后重新运行安装，或将配置块粘贴到 WorkBuddy 的“自定义连接器”并点“信任”即可。
+
 ## 常用工具顺序
 
 ```text

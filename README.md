@@ -4,12 +4,16 @@
 
 需要直接在网页工作台里填写资料和操作，请使用 [求职管家独立版](https://github.com/Alxdzh/job-agent-standalone)。
 
+## 资料和投递偏好
+
+概览中的“JD 判断资料”只保存个人背景和岗位判断补充条件，供 JD 判断参考；“设置 → 投递偏好”才是实际投递条件的唯一来源，包括城市、关键词、薪资、启用状态和筛选词。Agent 修改方向时应更新投递偏好；保存资料不会修改平台配置，也不会开始投递。
+
 ## 能做什么
 
 - 读取投递状态、平台登录态、冷却、浏览器页面状态和历史记录。
 - 修改城市、职位关键词、薪资、平台、公司排除词和岗位筛选条件。
 - 修改投递时间窗、随机批次、休息时间和岗位间隔。
-- 读取和保存资料、简历版本，并在确认后同步到 BOSS。
+- 读取和保存用于 JD 判断的单段资料文本。
 - 打开指定平台的可见 Chrome 登录页面。
 - 启动指定数量投递或持续投递，暂停、恢复和停止任务。
 
@@ -128,7 +132,7 @@ job_get_workflow
 | Codex | `codex mcp add` | `codex mcp list` |
 | Claude Code | `claude mcp add` | `claude mcp list` 或 `/mcp` |
 | OpenCode | 全局 `opencode.json(c)` | `opencode mcp list` |
-| WorkBuddy / CodeBuddy | `codebuddy mcp add` | `codebuddy mcp list` |
+| WorkBuddy / CodeBuddy | `~/.workbuddy/mcp.json`（文件级注册，无需 CLI） | 客户端的 MCP 设置 |
 
 同名服务已存在时，安装器不会覆盖原配置；OpenCode 修改配置前会生成备份。
 

@@ -188,7 +188,7 @@ function Start-Workbench([hashtable]$Runtime) {
 }
 
 try {
-  Assert-DesktopSession
+  if (-not $InstallOnly) { Assert-DesktopSession }
   if ($RunOnly -and $InstallOnly) { throw 'RunOnly and InstallOnly cannot be used together.' }
   if ($RunOnly) {
     Say 'Starting the installed workbench...'

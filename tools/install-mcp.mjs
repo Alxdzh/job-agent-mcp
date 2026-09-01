@@ -14,6 +14,7 @@ function usage() {
 
 Options:
   --client auto|all|codex|claude|opencode|workbuddy   Client to configure (default: auto)
+                                                        WorkBuddy uses ~/.workbuddy/mcp.json and needs no CLI
   --name NAME                                         MCP server name (default: job-agent)
   --skip-deps                                         Do not run npm install
   --print                                              Print a generic mcpServers JSON block
@@ -87,21 +88,68 @@ function ensureDependencies() {
   if (result.status !== 0) throw new Error(`npm install failed with exit code ${result.status}.`)
 }
 
-function genericConfig(name) {
+function detectChrome() {
+  const candidates = [
+    process.env.BOSS_CHROME_PATH,
+    process.env.CHROME_PATH
+  ]
+  if (process.platform === 'win32') {
+    candidates.push(
+      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+      process.env.ProgramFiles ? path.join(process.env.ProgramFiles, 'Google', 'Chrome', 'Application', 'chrome.exe') : '',
+      process.env['ProgramFiles(x86)'] ? path.join(process.env['ProgramFiles(x86)'], 'Google', 'Chrome', 'Application', 'chrome.exe') : '',
+      process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Google', 'Chrome', 'Application', 'chrome.exe') : ''
+    )
+  } else if (process.platform === 'darwin') {
+    candidates.push('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
+  } else {
+    candidates.push('/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/opt/google/chrome/chrome')
+  }
+  return [...new Set(candidates.filter(Boolean))].find(candidate => {
+    try { return fs.existsSync(candidate) }
+    catch { return false }
+  }) || ''
+}
+
+function buildServerEntry(name) {
+  const configDir = path.resolve(process.env.JOB_AGENT_CONFIG_DIR || path.join(os.homedir(), '.job-agent', 'config'))
+  const storageDir = path.resolve(process.env.JOB_AGENT_STORAGE_DIR || path.join(os.homedir(), '.job-agent', 'storage'))
+  const stateDir = path.join(DAEMON, 'state')
+  const chrome = detectChrome()
   return {
     mcpServers: {
       [name]: {
         type: 'stdio',
         command: process.execPath,
-        args: [MCP_ENTRY]
+        args: [MCP_ENTRY],
+        cwd: DAEMON,
+        env: {
+          JOB_AGENT_CONFIG_DIR: configDir,
+          JOB_AGENT_STORAGE_DIR: storageDir,
+          BOSS_DAEMON_STATE: stateDir,
+          BOSS_CHROME_PATH: chrome
+        }
       }
     }
   }
 }
 
-function sameServer(output) {
-  const normalized = String(output || '').replaceAll('\\', '/')
-  return normalized.includes('/mcp-server.mjs')
+function genericConfig(name) {
+  return buildServerEntry(name)
+}
+
+function sameServer(value) {
+  const target = path.resolve(MCP_ENTRY).replaceAll('\\', '/')
+  const candidates = typeof value === 'string'
+    ? [value]
+    : isObject(value)
+      ? [value.command, value.args, value.cwd]
+      : []
+  return candidates.some(candidate => {
+    const source = Array.isArray(candidate) ? candidate.join(' ') : String(candidate || '')
+    return source.replaceAll('\\', '/').includes(target)
+  })
 }
 
 function inspectNativeServer(cli, name) {
@@ -122,8 +170,7 @@ function addNativeClient(client, cli, name) {
   const nodeCommand = process.execPath
   const args = {
     claude: ['mcp', 'add', '--transport', 'stdio', '--scope', 'user', name, '--', nodeCommand, MCP_ENTRY],
-    codex: ['mcp', 'add', name, '--', nodeCommand, MCP_ENTRY],
-    workbuddy: ['mcp', 'add', '--scope', 'user', name, '--', nodeCommand, MCP_ENTRY]
+    codex: ['mcp', 'add', name, '--', nodeCommand, MCP_ENTRY]
   }[client]
   if (!args) throw new Error(`Unsupported native client: ${client}`)
   const result = run(cli, args)
@@ -167,6 +214,58 @@ function readJsonc(file) {
 
 function isObject(value) {
   return value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function workbuddyConfigPath() {
+  return path.join(os.homedir(), '.workbuddy', 'mcp.json')
+}
+
+function isConfigLockError(error) {
+  return ['EPERM', 'EBUSY', 'EACCES'].includes(error?.code)
+}
+
+function printWorkbuddyFallback(file, block) {
+  console.log('\n[Job Agent] WorkBuddy 正在运行并占用配置文件锁，无法自动写入。')
+  console.log('请重启 WorkBuddy 后重新运行安装，或在 WorkBuddy「自定义连接器」中粘贴下面的配置并点“信任”。')
+  console.log('配置文件：' + file + '\n')
+  console.log(JSON.stringify(block, null, 2))
+}
+
+function updateWorkbuddy(name) {
+  const file = workbuddyConfigPath()
+  const block = buildServerEntry(name)
+  const entry = block.mcpServers[name]
+  try {
+    const config = readJsonc(file)
+    if (!isObject(config)) throw new Error('WorkBuddy config must contain a JSON object: ' + file)
+    if (config.mcpServers == null) config.mcpServers = {}
+    if (!isObject(config.mcpServers)) throw new Error('WorkBuddy mcpServers must be an object: ' + file)
+
+    const old = config.mcpServers[name]
+    if (old) {
+      if (sameServer(old)) {
+        console.log('[Job Agent] workbuddy: ' + name + ' is already registered in ' + file + '.')
+        return
+      }
+      throw new Error('WorkBuddy already has an MCP server named ' + name + ', but it points to a different command. Use --name with another name or edit ' + file + '.')
+    }
+
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    if (fs.existsSync(file)) {
+      const backup = file + '.job-agent.bak-' + Date.now()
+      fs.copyFileSync(file, backup)
+      console.log('[Job Agent] WorkBuddy config backup: ' + backup)
+    }
+    config.mcpServers[name] = entry
+    fs.writeFileSync(file, JSON.stringify(config, null, 2) + '\n', 'utf8')
+    console.log('[Job Agent] workbuddy: registered ' + name + ' in ' + file + '.')
+  } catch (error) {
+    if (isConfigLockError(error)) {
+      printWorkbuddyFallback(file, block)
+      return
+    }
+    throw error
+  }
 }
 
 function looksLikeFlatOpenCodeServers(value) {
@@ -226,16 +325,23 @@ function updateOpenCode(name) {
   console.log(`[Job Agent] opencode: registered ${name} in ${file}.`)
 }
 
+function isWorkbuddyInstalled() {
+  const home = os.homedir()
+  const config = path.join(home, '.workbuddy', 'mcp.json')
+  const directory = path.join(home, '.workbuddy')
+  if (fs.existsSync(config) || fs.existsSync(directory)) return true
+  return Boolean(resolveExecutable('workbuddy') || resolveExecutable('codebuddy'))
+}
+
 function installedClients() {
   const clients = []
   const codex = resolveExecutable('codex')
   const claude = resolveExecutable('claude')
   const opencode = resolveExecutable('opencode')
-  const codebuddy = resolveExecutable('codebuddy') || resolveExecutable('workbuddy')
   if (codex) clients.push({ name: 'codex', cli: codex })
   if (claude) clients.push({ name: 'claude', cli: claude })
   if (opencode) clients.push({ name: 'opencode', cli: opencode })
-  if (codebuddy) clients.push({ name: 'workbuddy', cli: codebuddy })
+  if (isWorkbuddyInstalled()) clients.push({ name: 'workbuddy', cli: null })
   return clients
 }
 
@@ -272,6 +378,7 @@ function main() {
     if (!clients.length) throw new Error('没有检测到 Codex、Claude Code、OpenCode 或 WorkBuddy/CodeBuddy CLI。请安装其中一个客户端，或用 --print 查看通用配置。')
     for (const client of clients) {
       if (client.name === 'opencode') updateOpenCode(options.name)
+      else if (client.name === 'workbuddy') updateWorkbuddy(options.name)
       else addNativeClient(client.name, client.cli, options.name)
     }
     return
@@ -279,8 +386,11 @@ function main() {
   if (!['codex', 'claude', 'workbuddy'].includes(requested)) {
     throw new Error(`Unsupported client: ${options.client}`)
   }
-  const cliNames = requested === 'workbuddy' ? ['codebuddy', 'workbuddy'] : [requested]
-  const cli = cliNames.map(resolveExecutable).find(Boolean)
+  if (requested === 'workbuddy') {
+    updateWorkbuddy(options.name)
+    return
+  }
+  const cli = resolveExecutable(requested)
   if (!cli) throw new Error(`没有检测到 ${requested} CLI。请先安装客户端，或用 --print 查看通用配置。`)
   addNativeClient(requested, cli, options.name)
 }
