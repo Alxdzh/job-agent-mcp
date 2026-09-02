@@ -79,6 +79,66 @@ function installDependencies() {
   process.stderr.write('[job-agent] MCP 依赖准备完成。\n')
 }
 
+const legacyRoleSets = [
+  ['AI产品经理', 'AIGC产品经理', 'B端', 'C端', '产品经理', '产品助理', '产品运营', '内容产品经理'],
+  ['行政专员', '行政助理', '行政文员', '文职']
+].map(items => items.sort().join('|'))
+
+function readJson(file) {
+  try { return JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '')) } catch { return null }
+}
+
+function configKeywords(config) {
+  const children = Array.isArray(config?.jobSourceList)
+    ? config.jobSourceList.flatMap(source => Array.isArray(source?.children) ? source.children : [])
+      .filter(child => child?.type === 'search-kw' && child.enabled !== false)
+      .map(child => String(child.keyword || '').trim()).filter(Boolean)
+    : []
+  if (children.length) return children
+  return String(config?.expectJobNameRegExpStr || '').split('|').map(item => item.trim()).filter(Boolean)
+}
+
+function clearLegacyDefaults(configDir) {
+  if (process.env.JOB_AGENT_CLEAR_LEGACY_DEFAULTS !== '1') return
+  const marker = path.join(configDir, '.release-defaults-cleared-v1')
+  if (exists(marker)) return
+
+  const legacyFiles = ['boss.json', 'zhilian.json', 'job51.json', 'liepin.json']
+  for (const name of legacyFiles) {
+    const file = path.join(configDir, name)
+    const config = readJson(file)
+    if (!config || typeof config !== 'object' || Array.isArray(config)) continue
+    let changed = false
+    const city = String(config.daemonCity || '').trim()
+    const cityList = Array.isArray(config.expectCityList) ? config.expectCityList.map(item => String(item || '').trim()).filter(Boolean) : []
+    if (city === '青岛' || cityList.includes('青岛')) {
+      config.daemonCity = ''
+      config.expectCityList = []
+      if (Object.prototype.hasOwnProperty.call(config, 'liepinProvince')) config.liepinProvince = ''
+      changed = true
+    }
+    const keywords = configKeywords(config)
+    if (legacyRoleSets.includes([...new Set(keywords)].sort().join('|'))) {
+      config.expectJobNameRegExpStr = ''
+      config.jobSourceList = [{ type: 'search', enabled: true, children: [] }]
+      changed = true
+    }
+    if (changed) {
+      try {
+        fs.writeFileSync(file, JSON.stringify(config, null, 2) + '\n', 'utf8')
+      } catch (error) {
+        process.stderr.write(`[job-agent] 旧版默认配置未能自动清理：${error.message}\n`)
+      }
+    }
+  }
+  try {
+    fs.mkdirSync(configDir, { recursive: true })
+    fs.writeFileSync(marker, '1\n', 'utf8')
+  } catch (error) {
+    process.stderr.write(`[job-agent] 无法写入配置迁移标记：${error.message}\n`)
+  }
+}
+
 function detectChrome() {
   const candidates = [process.env.BOSS_CHROME_PATH, process.env.CHROME_PATH]
   if (process.platform === 'win32') {
@@ -106,6 +166,7 @@ function buildRuntimeEnv() {
   const storageDir = usablePath(process.env.JOB_AGENT_STORAGE_DIR) || path.join(home, '.job-agent', 'storage')
   const stateDir = usablePath(process.env.BOSS_DAEMON_STATE) || path.join(home, '.job-agent', 'state')
   for (const directory of [configDir, storageDir, stateDir]) fs.mkdirSync(directory, { recursive: true })
+  clearLegacyDefaults(configDir)
 
   return {
     ...process.env,

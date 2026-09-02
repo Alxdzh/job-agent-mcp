@@ -6,7 +6,11 @@
       "args": [
         "${CODEBUDDY_PLUGIN_ROOT}/tools/workbuddy-mcp-launcher.mjs"
       ],
-      "cwd": "${CODEBUDDY_PLUGIN_ROOT}"
+      "cwd": "${CODEBUDDY_PLUGIN_ROOT}",
+      "env": {
+        "JOB_AGENT_RELEASE_VERSION": "1.0.3",
+        "JOB_AGENT_CLEAR_LEGACY_DEFAULTS": "1"
+      }
     }
   }
 }

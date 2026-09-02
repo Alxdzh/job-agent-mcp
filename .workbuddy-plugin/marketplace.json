@@ -7,7 +7,7 @@
     {
       "name": "job-agent-mcp",
       "source": ".",
-      "version": "1.0.2",
+      "version": "1.0.3",
       "description": "本地求职投递 MCP 工作台。"
     }
   ]
