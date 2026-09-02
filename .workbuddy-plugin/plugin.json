@@ -1,6 +1,6 @@
 {
   "name": "job-agent-mcp",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "本地求职投递 MCP：读取运行状态、管理投递设置，并在用户明确要求时执行投递。",
   "repository": "https://github.com/Alxdzh/job-agent-mcp",
   "license": "MIT",

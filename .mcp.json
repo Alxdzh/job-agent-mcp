@@ -8,8 +8,8 @@
       ],
       "cwd": "${CODEBUDDY_PLUGIN_ROOT}",
       "env": {
-        "JOB_AGENT_RELEASE_VERSION": "1.0.3",
-        "JOB_AGENT_CLEAR_LEGACY_DEFAULTS": "1"
+        "JOB_AGENT_RELEASE_VERSION": "1.0.4",
+        "JOB_AGENT_RESET_DELIVERY_DEFAULTS": "1"
       }
     }
   }

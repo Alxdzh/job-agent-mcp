@@ -101,6 +101,8 @@ https://github.com/Alxdzh/job-agent-mcp
 
 仓库包含 `.workbuddy-plugin/plugin.json` 和 `.mcp.json`。插件入口会使用 WorkBuddy 自带的 Node.js 准备依赖，并把运行配置和状态保存到当前用户目录；不需要在 WorkBuddy 运行期间改写其锁定的 `mcp.json`。
 
+插件首次加载新版本时会清理旧版本遗留的平台城市和岗位关键词默认值，避免继续沿用旧的求职方向；求职资料、投递统计、模型 API、Cookie 和登录状态不会被清理。清理完成后城市和关键词保持空白，需由用户重新填写。
+
 ## 调用流程
 
 ```text

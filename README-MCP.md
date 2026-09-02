@@ -50,6 +50,8 @@ https://github.com/Alxdzh/job-agent-mcp
 
 仓库内置 `.workbuddy-plugin/plugin.json` 和 `.mcp.json`。WorkBuddy 会通过插件配置启动本地服务；服务首次启动时使用 WorkBuddy 自带的 Node.js 准备依赖，配置和运行数据写入当前用户目录。这个路径不需要改写 WorkBuddy 的配置文件，也不会依赖 Git Bash 的路径转换。
 
+当前插件版本首次加载时会清理旧版本遗留的平台城市和岗位关键词默认值，避免继续沿用旧的求职方向；求职资料、投递统计、模型 API、Cookie 和登录状态不会被清理。清理完成后，城市和关键词保持空白，需由用户重新填写。
+
 ## 其他客户端从 GitHub 安装
 
 如果使用的是 Codex、Claude Code 或 OpenCode，把下面这段消息发给客户端即可。它会先从 GitHub 拉取仓库，再完成 MCP 注册：
